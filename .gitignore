@@ -1,0 +1,90 @@
+# ============================================================
+# AI Meeting Assistant - .gitignore
+# ============================================================
+
+# --- Secrets / environment ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# --- Virtual environments ---
+venv/
+.venv/
+env/
+ENV/
+
+# --- Testing / tooling caches ---
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.ipynb_checkpoints/
+
+# --- Project data: uploads, media, outputs ---
+uploads/
+downloads/
+temp/
+tmp/
+outputs/
+exports/
+*.mp4
+*.mp3
+*.wav
+*.m4a
+*.mkv
+*.webm
+*.flac
+*.ogg
+
+# --- RAG vector store (ChromaDB) ---
+chroma_db/
+chroma/
+*.sqlite3
+
+# --- Model caches (Whisper / Hugging Face) ---
+.cache/
+whisper_models/
+models/
+*.pt
+*.bin
+*.safetensors
+*.ckpt
+
+# --- Logs ---
+*.log
+logs/
+
+# --- Frontend (React) ---
+node_modules/
+frontend/node_modules/
+frontend/build/
+frontend/dist/
+frontend/.vite/
+.next/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.eslintcache
+
+# --- IDE / OS ---
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

@@ -1,0 +1,48 @@
+# ============================================================
+# AI Meeting Assistant - Backend Requirements
+# Python 3.10+ recommended
+# Note: FFmpeg must be installed on the system (not via pip)
+# ============================================================
+
+# --- Web API (serves the React frontend) ---
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+python-multipart>=0.0.9      # file uploads (mp4)
+python-dotenv>=1.0.1         # load MISTRAL_API_KEY from .env
+pydantic>=2.6.0
+
+# --- Media input: YouTube + video/audio handling ---
+yt-dlp>=2024.4.9             # download YouTube audio
+ffmpeg-python>=0.2.0         # wrapper; requires ffmpeg binary installed
+moviepy>=1.0.3               # optional: extract audio from mp4
+pydub>=0.25.1                # audio chunking/conversion
+
+# --- Transcription + Hindi -> English translation (local Whisper) ---
+openai-whisper>=20231117     # local Whisper (task="translate" handles Hindi -> English)
+# faster-whisper>=1.0.0      # optional faster alternative to openai-whisper
+torch>=2.2.0                 # Whisper + embeddings backend (install CPU/CUDA build as needed)
+numpy>=1.26.0
+langdetect>=1.0.9            # detect Hindi vs English before translating
+
+# --- LangChain (LCEL) + Mistral free API ---
+langchain>=0.2.0
+langchain-core>=0.2.0
+langchain-community>=0.2.0
+langchain-mistralai>=0.1.7
+langchain-text-splitters>=0.2.0
+
+# --- RAG: ChromaDB + Hugging Face embeddings ---
+chromadb>=0.5.0
+langchain-chroma>=0.1.1
+langchain-huggingface>=0.0.3
+sentence-transformers>=2.7.0
+transformers>=4.40.0
+
+# --- Export: PDF + TXT ---
+reportlab>=4.1.0             # generate PDF reports
+# fpdf2>=2.7.8               # lighter alternative to reportlab
+
+# --- Utilities ---
+requests>=2.31.0
+tqdm>=4.66.0
+aiofiles>=23.2.1
