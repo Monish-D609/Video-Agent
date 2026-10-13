@@ -51,7 +51,6 @@ def chunk_audio(wav_path : str, chunk_minutes : int = 10) -> list:
     return chunks
 
 
-url = input("Enter video url: ")
 
 def process_input(source: str) -> list:
     if source.startswith("http://") or source.startswith("https://"):
