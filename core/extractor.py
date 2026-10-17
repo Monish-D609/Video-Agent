@@ -1,6 +1,6 @@
 # Actionable items, decisions, questions
 
-from langchain_mistralai import ChatMistralAI
+from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnableLambda, RunnablePassthrough
@@ -8,7 +8,16 @@ from langchain_core.runnables import RunnableLambda, RunnablePassthrough
 import os
 
 def get_llm():
-    return ChatMistralAI(model="mistral-small-latest", mistral_api_key = os.getenv("MISTRAL_API_KEY"), temperature=0.2)
+    # Cloudflare Workers AI via its OpenAI-compatible endpoint
+    return ChatOpenAI(
+        model=os.getenv("CLOUDFLARE_MODEL", "@cf/meta/llama-3.1-8b-instruct-fp8"),
+        api_key=os.getenv("CLOUDFLARE_API_TOKEN"),
+        base_url=f"https://api.cloudflare.com/client/v4/accounts/{os.getenv('CLOUDFLARE_ACCOUNT_ID')}/ai/v1",
+        temperature=0.2,
+        max_tokens=int(os.getenv("CLOUDFLARE_MAX_TOKENS", "1024")),
+        max_retries=3,
+        timeout=120,
+    )
 
 
 def build_chain(system_prompt : str):

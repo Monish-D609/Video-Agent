@@ -24,11 +24,11 @@ torch>=2.2.0                 # Whisper + embeddings backend (install CPU/CUDA bu
 numpy>=1.26.0
 langdetect>=1.0.9            # detect Hindi vs English before translating
 
-# --- LangChain (LCEL) + Mistral free API ---
+# --- LangChain (LCEL) + Cloudflare Workers AI (OpenAI-compatible endpoint) ---
 langchain>=0.2.0
 langchain-core>=0.2.0
 langchain-community>=0.2.0
-langchain-mistralai>=0.1.7
+langchain-openai>=0.1.0      # used to talk to Cloudflare Workers AI
 langchain-text-splitters>=0.2.0
 
 # --- RAG: ChromaDB + Hugging Face embeddings ---

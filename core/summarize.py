@@ -1,4 +1,4 @@
-from langchain_mistralai import ChatMistralAI
+from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -7,7 +7,16 @@ from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 import os
 
 def get_llm():
-    return ChatMistralAI(model = "mistral-small-latest", mistral_api_key = os.getenv("MISTRAL_API_KEY"), temperature=0.3)
+    # Cloudflare Workers AI via its OpenAI-compatible endpoint
+    return ChatOpenAI(
+        model=os.getenv("CLOUDFLARE_MODEL", "@cf/meta/llama-3.1-8b-instruct-fp8"),
+        api_key=os.getenv("CLOUDFLARE_API_TOKEN"),
+        base_url=f"https://api.cloudflare.com/client/v4/accounts/{os.getenv('CLOUDFLARE_ACCOUNT_ID')}/ai/v1",
+        temperature=0.3,
+        max_tokens=int(os.getenv("CLOUDFLARE_MAX_TOKENS", "1024")),
+        max_retries=3,
+        timeout=120,
+    )
 
 def split_transcript(transcript: str) -> list:
     splitter = RecursiveCharacterTextSplitter(
@@ -17,7 +26,7 @@ def split_transcript(transcript: str) -> list:
 
     return splitter.split_text(transcript)
 
-def summarize(transcript: str)-> str:
+def summarize(transcript: str, cache=None)-> str:
     llm = get_llm()
     map_prompt = ChatPromptTemplate.from_messages([
         ("system", """You are an expert at summarizing spoken content. You will receive ONE \
@@ -88,7 +97,18 @@ def summarize(transcript: str)-> str:
 
     chunks = split_transcript(transcript)
 
-    chunk_summaries = [map_chain.invoke({"text": chunk}) for chunk in chunks]
+    chunk_summaries = []
+    for i, chunk in enumerate(chunks):
+        cached = cache.get_chunk_summary(chunk) if cache else None
+        if cached is not None:
+            print(f"  Chunk summary {i + 1}/{len(chunks)} loaded from cache")
+            chunk_summaries.append(cached)
+            continue
+        print(f"  Summarizing chunk {i + 1}/{len(chunks)}...")
+        chunk_summary = map_chain.invoke({"text": chunk})
+        if cache:
+            cache.set_chunk_summary(chunk, chunk_summary)
+        chunk_summaries.append(chunk_summary)
 
     combined = "\n\n---\n\n".join(
     f"[Segment {i + 1}]\n{s}" for i, s in enumerate(chunk_summaries)
