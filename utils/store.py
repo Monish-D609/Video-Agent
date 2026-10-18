@@ -2,6 +2,7 @@
 JSON persistence so a crash never costs you finished work.
 
 downloads/
+  session/<key>.json    the website's chat history for that video (saved after every answer)
   raw/<key>.json        chunk-wise transcripts (written after every chunk / Sarvam piece)
   processed/<key>.json  combined transcript + title, summaries, action items, etc.
 
@@ -14,6 +15,7 @@ import hashlib
 import json
 import os
 import tempfile
+import threading
 from datetime import datetime, timezone
 from urllib.parse import urlparse, parse_qs
 
@@ -21,7 +23,10 @@ CACHE_DIR = os.getenv("CACHE_DIR", "downloads")
 RAW_DIR = os.path.join(CACHE_DIR, "raw")
 PROCESSED_DIR = os.path.join(CACHE_DIR, "processed")
 os.makedirs(RAW_DIR, exist_ok=True)
+SESSION_DIR = os.path.join(CACHE_DIR, "session")
 os.makedirs(PROCESSED_DIR, exist_ok=True)
+os.makedirs(SESSION_DIR, exist_ok=True)
+_SESSION_LOCK = threading.Lock()
 
 
 # ----------------------------- helpers -----------------------------
@@ -216,3 +221,36 @@ class ProcessedStore:
     def set_chunk_summary(self, chunk_text: str, summary: str):
         self.data["chunk_summaries"][self._chunk_id(chunk_text)] = summary
         self._flush()
+
+
+# ----------------------------- session (website chat history) -----------------------------
+
+def _session_path(key: str) -> str:
+    return os.path.join(SESSION_DIR, f"{key}.json")
+
+
+def load_session(key: str) -> dict:
+    data = _read_json(_session_path(key))
+    if data and isinstance(data.get("messages"), list):
+        return data
+    return {"key": key, "created_at": _now(), "updated_at": _now(), "messages": []}
+
+
+def append_messages(key: str, messages: list) -> dict:
+    """Add messages to the video's session file. Written right away, so nothing is lost on restart."""
+    with _SESSION_LOCK:
+        data = load_session(key)
+        for m in messages:
+            m = dict(m)
+            m.setdefault("at", _now())
+            data["messages"].append(m)
+        data["updated_at"] = _now()
+        _write_json(_session_path(key), data)
+        return data
+
+
+def clear_session(key: str) -> None:
+    with _SESSION_LOCK:
+        path = _session_path(key)
+        if os.path.exists(path):
+            os.remove(path)

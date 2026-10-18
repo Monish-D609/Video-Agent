@@ -31,4 +31,7 @@ export const api = {
   videos: () => fetch("/api/videos").then(handle),
   chat: (id, question) =>
     fetch(`/api/chat/${id}`, json({ question })).then(handle),
+  session: (id) => fetch(`/api/session/${id}`).then(handle),
+  clearSession: (id) =>
+    fetch(`/api/session/${id}`, { method: "DELETE" }).then(handle),
 };

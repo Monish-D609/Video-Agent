@@ -19,11 +19,11 @@ def get_llm():
 def format_docs(docs):
     return "\n\n".join([doc.page_content for doc in docs])
 
-def build_rag_chain(transcript:str):
+def build_rag_chain(transcript: str, key: str = "default"):
 
-    vector_store = build_vector_store(transcript)
+    vector_store = build_vector_store(transcript, key=key)
 
-    retriever = get_retriever(vector_store, k = 4)
+    retriever = get_retriever(vector_store, k=4)
 
     llm = get_llm()
 
@@ -31,51 +31,49 @@ def build_rag_chain(transcript:str):
 
         [(
             "system",
-            """You are an expert meeting assistant. Answer the user's question 
-based ONLY on the meeting transcript context provided below.
+            """You are an expert video/audio content assistant. Answer the user's question
+based ONLY on the transcript context provided below.
 
-If the answer is not found in the context, say: 
-"I could not find this information in the meeting transcript."
+If the answer is not found in the context, say:
+"I could not find this information in the recording transcription."
 
 Always be concise and precise. If quoting someone, mention it clearly.
 
-Context from meeting transcript:
+Context from transcript:
 {context}""",
         ),
         ("human", "{question}"),
     ]
     )
 
-    #full LCEL Rag pipeline 
-
+    # full LCEL RAG pipeline
     rag_chain = (
-
-        {"context" : retriever | RunnableLambda(format_docs),
-         "question": RunnablePassthrough()
+        {"context": retriever | RunnableLambda(format_docs),
+         "question": RunnablePassthrough(),
          }
-         |prompt|llm|StrOutputParser()
+        | prompt | llm | StrOutputParser()
     )
 
     return rag_chain
 
 
-def load_rag_chain():
-    vector_store = load_vector_store()
-    retriver = get_retriever(vector_store, k = 4)   # was get_retriever(): vector_store was never passed
+def load_rag_chain(key: str = "default"):
+    vector_store = load_vector_store(key=key)
+    retriever = get_retriever(vector_store, k=4)
 
     llm = get_llm()
     prompt = ChatPromptTemplate.from_messages([
         (
             "system",
-            """You are an expert meeting assistant. Answer the user's question 
-based ONLY on the meeting transcript context provided below.
+            """You are an expert video/audio content assistant. Answer the user's question
+based ONLY on the transcript context provided below.
 
-If the answer is not found in the context, say: 
-"I could not find this information in the meeting transcript."
+If the answer is not found in the context, say:
+"I could not find this information in the recording transcription."
 
 Always be concise and precise. If quoting someone, mention it clearly.
 
-Context from meeting transcript:
+Context from transcript:
 {context}""",
         ),
         ("human", "{question}"),
@@ -83,7 +81,7 @@ Context from meeting transcript:
 
     rag_chain = (
         {
-            "context":  retriver| RunnableLambda(format_docs),
+            "context": retriever | RunnableLambda(format_docs),
             "question": RunnablePassthrough(),
         }
         | prompt

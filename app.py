@@ -23,7 +23,9 @@ from utils import store
 from core.transcriber import transcribe_all
 from core.summarize import summarize, generate_title
 from core.extractor import extract_action_items, extract_key_decisions, extract_questions
-from core.rag_engine import build_rag_chain, ask_question
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from core.rag_engine import build_rag_chain, ask_question, get_llm
 
 
 EXTRACT_MAX_CHARS = 18000       # same rule as test.py
@@ -67,7 +69,7 @@ def _ensure_chain(key: str, transcript: str):
     """Return the RAG chain for this video, (re)building it if another video was active."""
     with RAG_LOCK:
         if RAG["key"] != key:
-            RAG["chain"] = build_rag_chain(transcript)
+            RAG["chain"] = build_rag_chain(transcript, key=key)
             RAG["key"] = key
         return RAG["chain"]
 
@@ -140,6 +142,101 @@ class ProcessRequest(BaseModel):
 
 class ChatRequest(BaseModel):
     question: str
+
+
+# The RAG chain has no memory: it searches the transcript with the raw question only.
+# So "what are the good sides to this?" would search for the words "good sides to this".
+# We first turn the question into a standalone one, using the chat history and video title.
+CONDENSE_PROMPT = ChatPromptTemplate.from_messages([
+    ("system",
+     "You rewrite questions about a video so they make sense on their own. "
+     "The video is titled: {title}. "
+     "Using the conversation so far, rewrite the user's last question as ONE standalone question, "
+     "replacing words like 'this', 'it', 'that' or 'they' with what they refer to. "
+     "Do not answer it and do not add facts. If it is already standalone, return it unchanged. "
+     "Return only the question."),
+    ("human", "Conversation so far:\n{history}\n\nLast question: {question}"),
+])
+
+
+def _standalone_question(question: str, history, title: str) -> str:
+    convo = "\n".join(f"{m['role'].capitalize()}: {m['text']}" for m in history[-6:])
+    try:
+        chain = CONDENSE_PROMPT | get_llm() | StrOutputParser()
+        rewritten = chain.invoke(
+            {"title": title or "Untitled", "history": convo or "(none)", "question": question}
+        ).strip().strip('"')
+        if rewritten and len(rewritten) <= 400:
+            return rewritten
+    except Exception as e:
+        print(f"⚠️ Could not rewrite the question, using the original: {e}")
+    return question
+
+
+# --------------- query router ---------------
+# Intent categories for query routing
+_SUMMARY_PATTERNS = re.compile(
+    r"\b(summar|overview|what('?s| is) (this|the) (video|talk|lecture|podcast|recording) about"
+    r"|what (was|were) (discussed|covered|talked about)"
+    r"|main (point|topic|idea|takeaway)"
+    r"|give me a (brief|quick|short) (overview|summary)"
+    r"|tldr|tl;dr)",
+    re.IGNORECASE,
+)
+_META_PATTERNS = re.compile(
+    r"\b(title|what('?s| is) (the )?title|what('?s| is) (this|the) video called"
+    r"|language|how long|duration|transcript|full text)",
+    re.IGNORECASE,
+)
+_GREETING_PATTERNS = re.compile(
+    r"^\s*(hi|hello|hey|sup|howdy|greetings|good (morning|afternoon|evening))[\.!?]?\s*$",
+    re.IGNORECASE,
+)
+_CONVO_PATTERNS = re.compile(
+    r"^\s*(thanks?|thank you|okay|ok|got it|great|cool|nice|awesome|understood|makes sense|sure|alright|perfect)[\.!?]?\s*$",
+    re.IGNORECASE,
+)
+
+
+def _route_query(question: str, data: dict) -> str | None:
+    """Try to answer certain query types directly without hitting the vector store.
+    Returns a string answer, or None if the question should go through RAG."""
+    q = question.strip()
+
+    # Greetings — respond without touching RAG
+    if _GREETING_PATTERNS.match(q):
+        title = data.get("title") or "this video"
+        return f"Hi! I'm here to help you explore **{title}**. Ask me anything about what was said in it."
+
+    # Short conversational acknowledgements
+    if _CONVO_PATTERNS.match(q):
+        return "Sure! Feel free to ask anything else about the video."
+
+    # Summary / overview requests — serve cached summary directly
+    if _SUMMARY_PATTERNS.search(q) and data.get("summary"):
+        return data["summary"]
+
+    # Title / meta questions — answer from cached data
+    if _META_PATTERNS.search(q):
+        title = data.get("title") or "Untitled"
+        language = data.get("language") or "unknown"
+        if re.search(r"\btitle\b|what.*called", q, re.IGNORECASE):
+            return f"The title of this video is: **{title}**"
+        if re.search(r"\blanguage\b", q, re.IGNORECASE):
+            return f"This video was transcribed in **{language}**."
+        if re.search(r"\btranscript\b|\bfull text\b", q, re.IGNORECASE):
+            return "You can view the full transcript in the **Transcript** tab above."
+
+    # Action items / decisions / open questions — serve cached extractions
+    if re.search(r"\baction item|\btask|\bto.?do\b", q, re.IGNORECASE) and data.get("action_items"):
+        return data["action_items"]
+    if re.search(r"\bdecision|\bwhat was decided|\bagreed\b", q, re.IGNORECASE) and data.get("decisions"):
+        return data["decisions"]
+    if re.search(r"\bopen question|\bunresolved|\bunanswered\b", q, re.IGNORECASE) and data.get("questions"):
+        return data["questions"]
+
+    # Fallthrough: let RAG handle it
+    return None
 
 
 def _check_language(language: str) -> str:
@@ -231,10 +328,45 @@ def chat(key: str, req: ChatRequest):
     if not data or not data.get("transcript"):
         raise HTTPException(404, "Video not found")
     try:
+        history = store.load_session(key)["messages"]          # saved conversation = the memory
+
+        # Step 1: query routing
+        # Try to answer directly from cached data (summary, title, extractions)
+        # before touching the vector store. This avoids irrelevant embedding hits.
+        direct_answer = _route_query(question, data)
+        if direct_answer is not None:
+            store.append_messages(key, [
+                {"role": "user", "text": question},
+                {"role": "assistant", "text": direct_answer, "route": "direct"},
+            ])
+            return {"answer": direct_answer, "rewritten": None, "route": "direct"}
+
+        # Step 2: rewrite the question into a standalone one, then RAG
+        standalone = _standalone_question(question, history, data.get("title"))
         chain = _ensure_chain(key, data["transcript"])
-        return {"answer": ask_question(chain, question)}
+        answer = ask_question(chain, standalone)
+        rewritten = standalone if standalone != question else None
+        store.append_messages(key, [
+            {"role": "user", "text": question},
+            {"role": "assistant", "text": answer, "rewritten": rewritten, "route": "rag"},
+        ])
+        return {"answer": answer, "rewritten": rewritten, "route": "rag"}
     except Exception as e:
         raise HTTPException(500, f"{type(e).__name__}: {e}")
+
+
+@app.get("/api/session/{key}")
+def get_session(key: str):
+    if not _load_processed(key):
+        raise HTTPException(404, "Video not found")
+    return {"messages": store.load_session(key)["messages"]}
+
+
+@app.delete("/api/session/{key}")
+def delete_session(key: str):
+    _load_processed(key)   # validates the id
+    store.clear_session(key)
+    return {"ok": True}
 
 
 # Serve the built frontend (after `npm run build`) from the same server
