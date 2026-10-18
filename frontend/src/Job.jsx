@@ -43,7 +43,7 @@ function Processing({ stage }) {
   );
 }
 
-export default function Job({ id, onHome }) {
+export default function Job({ id, onHome, initialTab = "chat", onChatUpdated }) {
   const [st, setSt] = useState(null);
   const [nonce, setNonce] = useState(0);
 
@@ -100,5 +100,12 @@ export default function Job({ id, onHome }) {
         </div>
       </section>
     );
-  return <Results id={id} />;
+  return (
+    <Results
+      id={id}
+      initialTab={initialTab}
+      onChatUpdated={onChatUpdated}
+    />
+  );
 }
+
