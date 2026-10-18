@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "./api.js";
+import { storage } from "./storage.js";
 
 const LANGS = [
   ["english", "English"],
@@ -20,7 +21,10 @@ export default function Home({ onOpen }) {
   useEffect(() => {
     api
       .videos()
-      .then(setRecent)
+      .then((items) => {
+        const active = (items || []).filter((v) => !storage.isDeleted(v.id));
+        setRecent(active);
+      })
       .catch(() => {});
   }, []);
 

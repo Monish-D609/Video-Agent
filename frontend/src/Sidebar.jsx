@@ -8,8 +8,11 @@ export default function Sidebar({
   onDeleteChat,
   isOpen,
   onClose,
+  theme = "dark",
+  toggleTheme,
 }) {
   const [filter, setFilter] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
   const filteredChats = filter.trim()
     ? chats.filter((c) =>
@@ -138,23 +141,48 @@ export default function Sidebar({
                         </div>
                       </div>
                     </button>
-                    <button
-                      className="chat-delete-btn"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (
-                          window.confirm(
-                            `Delete chat for "${c.title || "this video"}"?`
-                          )
-                        ) {
-                          onDeleteChat(c.id);
-                        }
-                      }}
-                      title="Delete chat from history"
-                      aria-label="Delete chat"
-                    >
-                      🗑
-                    </button>
+                    {confirmDeleteId === c.id ? (
+                      <div className="chat-delete-confirm-group" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          className="chat-confirm-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            setConfirmDeleteId(null);
+                            onDeleteChat(c.id);
+                          }}
+                          title="Confirm deletion"
+                          aria-label="Confirm deletion"
+                        >
+                          ✓
+                        </button>
+                        <button
+                          className="chat-cancel-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            setConfirmDeleteId(null);
+                          }}
+                          title="Cancel"
+                          aria-label="Cancel"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        className="chat-delete-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          setConfirmDeleteId(c.id);
+                        }}
+                        title="Delete chat from history"
+                        aria-label="Delete chat"
+                      >
+                        🗑
+                      </button>
+                    )}
                   </li>
                 );
               })}
@@ -164,6 +192,16 @@ export default function Sidebar({
 
         {/* Sidebar Footer */}
         <div className="sidebar-footer">
+          {toggleTheme && (
+            <button
+              className="sidebar-theme-toggle"
+              onClick={toggleTheme}
+              title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+            >
+              <span className="theme-icon">{theme === "dark" ? "☀️" : "🌙"}</span>
+              <span>{theme === "dark" ? "Light mode" : "Dark mode"}</span>
+            </button>
+          )}
           <div className="footer-status">
             <span className="status-dot online"></span>
             <span>Local AI · Whisper & RAG</span>

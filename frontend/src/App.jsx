@@ -16,6 +16,24 @@ export default function App() {
   const [chatList, setChatList] = useState(() => storage.getChatList());
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  // Theme management: persisted in localStorage with system preference fallback
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem("video_agent_theme");
+    if (saved === "dark" || saved === "light") return saved;
+    return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light";
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("video_agent_theme", theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+  };
+
   // Sync hash change
   useEffect(() => {
     const onHash = () => setId(parse());
@@ -46,11 +64,24 @@ export default function App() {
     setId(next);
   };
 
-  const handleDeleteChat = (chatId) => {
+  const handleDeleteChat = async (chatId) => {
+    // 1. Immediately remove from state for instant UI feedback
+    setChatList((prev) => prev.filter((c) => c.id !== chatId));
+
+    // 2. Mark as permanently deleted in local storage tombstone
     storage.deleteChat(chatId);
+
+    // 3. If currently viewing this chat, close it immediately
     if (id === chatId) {
       open(null);
     }
+
+    // 4. Request server session clearance
+    try {
+      await api.clearSession(chatId);
+    } catch {}
+
+    // 5. Sync chat list (deleted chat will be strictly excluded)
     refreshChats();
   };
 
@@ -67,6 +98,8 @@ export default function App() {
         onDeleteChat={handleDeleteChat}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        theme={theme}
+        toggleTheme={toggleTheme}
       />
 
       {/* Main chat & content area */}
@@ -108,6 +141,48 @@ export default function App() {
           </div>
 
           <div className="topbar-right">
+            <button
+              className="theme-toggle-btn"
+              onClick={toggleTheme}
+              title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+              aria-label="Toggle theme"
+            >
+              {theme === "dark" ? (
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="12" cy="12" r="5"></circle>
+                  <line x1="12" y1="1" x2="12" y2="3"></line>
+                  <line x1="12" y1="21" x2="12" y2="23"></line>
+                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                  <line x1="1" y1="12" x2="3" y2="12"></line>
+                  <line x1="21" y1="12" x2="23" y2="12"></line>
+                  <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                  <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                </svg>
+              ) : (
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+              )}
+            </button>
             {id && (
               <button
                 className="btn-new-chat-top"

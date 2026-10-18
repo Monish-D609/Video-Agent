@@ -17,6 +17,7 @@ export default function Chat({ id, title = "", onUpdated }) {
   const [loading, setLoading] = useState(false);
   const [slow, setSlow] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState(null);
+  const [confirmClear, setConfirmClear] = useState(false);
   const listRef = useRef(null);
   const textareaRef = useRef(null);
 
@@ -26,12 +27,25 @@ export default function Chat({ id, title = "", onUpdated }) {
     const local = storage.getChat(id);
     setMessages(local);
 
+    // If chat was explicitly cleared and has no local messages, do NOT resurrect old server messages
+    if (storage.isCleared(id) && local.length === 0) {
+      // Sync clearance to server
+      api.clearSession(id).catch(() => {});
+      return;
+    }
+
     // 2. Background check server session for any additional messages
     api
       .session(id)
       .then((d) => {
+        // If chat was cleared in the meantime, abort
+        if (storage.isCleared(id)) return;
+
         if (d && Array.isArray(d.messages) && d.messages.length > 0) {
           setMessages((current) => {
+            // Do not resurrect if current has been cleared
+            if (current.length === 0 && storage.isCleared(id)) return current;
+
             // If local has fewer messages than server, use server's
             if (d.messages.length > current.length) {
               storage.saveChat(id, d.messages, { title });
@@ -113,9 +127,7 @@ export default function Chat({ id, title = "", onUpdated }) {
   };
 
   const clear = async () => {
-    if (!window.confirm("Are you sure you want to clear this chat history?")) {
-      return;
-    }
+    setConfirmClear(false);
     storage.clearChat(id);
     setMessages([]);
     onUpdated?.(id, { messageCount: 0, lastMessage: "" });
@@ -161,16 +173,34 @@ export default function Chat({ id, title = "", onUpdated }) {
             </span>
           )}
         </div>
-        {messages.length > 0 && (
-          <button
-            className="btn-clear-chat"
-            onClick={clear}
-            disabled={loading}
-            title="Clear all messages for this video"
-          >
-            Clear chat
-          </button>
-        )}
+        {messages.length > 0 &&
+          (confirmClear ? (
+            <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
+              <span style={{ fontSize: "12px", color: "var(--danger)" }}>Clear all messages?</span>
+              <button
+                className="btn-clear-chat"
+                style={{ borderColor: "var(--danger)", color: "var(--danger)" }}
+                onClick={clear}
+              >
+                Yes, clear
+              </button>
+              <button
+                className="btn-clear-chat"
+                onClick={() => setConfirmClear(false)}
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              className="btn-clear-chat"
+              onClick={() => setConfirmClear(true)}
+              disabled={loading}
+              title="Clear all messages for this video"
+            >
+              Clear chat
+            </button>
+          ))}
       </div>
 
       {/* Message list */}
