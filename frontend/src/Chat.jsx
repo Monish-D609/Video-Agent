@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "./api.js";
-import FormattedText from "./FormattedText.jsx";
+import FormattedText from "frontend\src\FormattedText.jsx";
 
 const SUGGESTIONS = [
   "What are the main points of this video?",
