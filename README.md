@@ -85,69 +85,186 @@ Video Agent/
 
 ---
 
-## Setup
+## How to run it on your device
 
-### Requirements
-- Python 3.10+
-- [FFmpeg](https://ffmpeg.org/download.html) installed and available on your PATH (not installable through pip)
-- Node.js 18+ (only for the website)
+Follow these step-by-step instructions to set up and run the Video Agent locally from scratch.
 
-### Install
+### 1. Prerequisites
 
-```bash
-python -m venv .venv
-.venv\Scripts\activate          # Windows   (macOS/Linux: source .venv/bin/activate)
-pip install -r requirements.txt
-```
+Ensure the following tools are installed on your device:
 
-### Environment variables
-
-Create a `.env` file in the project root:
-
-```
-CLOUDFLARE_ACCOUNT_ID=your_account_id
-CLOUDFLARE_API_TOKEN=your_workers_ai_token
-SARVAM_API_KEY=your_sarvam_key
-```
-
-| Variable | Required | Purpose |
-| --- | --- | --- |
-| `CLOUDFLARE_ACCOUNT_ID` | yes | Your Cloudflare account id |
-| `CLOUDFLARE_API_TOKEN` | yes | API token with Workers AI permission |
-| `SARVAM_API_KEY` | for Hinglish | Sarvam AI speech-to-text-translate |
-| `CLOUDFLARE_MODEL` | no | Override the LLM. Default: `@cf/meta/llama-3.1-8b-instruct-fp8` |
-| `CLOUDFLARE_MAX_TOKENS` | no | Max tokens per LLM reply. Default 1024; use 2048 if summaries get cut off |
-| `WHISPER_MODEL` | no | Whisper size. Default: `small` |
-| `SARVAM_STT_MODEL` | no | Default: `saaras:v2.5` |
-| `CACHE_DIR` | no | Where `raw/` and `processed/` are saved. Default: `downloads` |
-
-Notes:
-- The Cloudflare token comes from *My Profile → API Tokens* (the "Workers AI" template works). The account id is shown on the Workers AI page.
-- No quotes around values, no spaces around `=`.
+1. **Python 3.10 or higher**
+   - Verify: `python --version` (or `python3 --version`)
+   - Download: [python.org](https://www.python.org/downloads/) *(On Windows, check "Add python.exe to PATH" during installation)*.
+2. **FFmpeg** *(Required for audio extraction, chunking, and conversion)*
+   - Verify: `ffmpeg -version`
+   - **Windows**: Run `winget install Gyan.FFmpeg` or `choco install ffmpeg`. Alternatively, download a build from [gyan.dev](https://www.gyan.dev/ffmpeg/builds/) and add its `bin` folder to your System `PATH`.
+   - **macOS**: Run `brew install ffmpeg`
+   - **Linux (Ubuntu/Debian)**: Run `sudo apt update && sudo apt install -y ffmpeg`
+3. **Node.js 18+ and npm** *(Required to run the web frontend)*
+   - Verify: `node -v` and `npm -v`
+   - Download: [nodejs.org](https://nodejs.org/) (LTS recommended).
+4. **Git**
+   - Verify: `git --version`
+   - Download: [git-scm.com](https://git-scm.com/)
 
 ---
 
-## Running
+### 2. Clone the repository
 
-Terminal 1, from the project root:
+Open your terminal and clone the repository:
 
 ```bash
-uvicorn app:app --port 8000
+git clone https://github.com/your-username/Video-Agent.git
+cd "Video Agent"
 ```
 
-Terminal 2:
+---
+
+### 3. Set up the Python backend
+
+Create an isolated virtual environment and install the Python dependencies.
+
+#### 3.1 Create and activate the virtual environment
+
+- **Windows (PowerShell):**
+  ```powershell
+  python -m venv .venv
+  .\.venv\Scripts\Activate.ps1
+  ```
+  *(If PowerShell blocks script execution, run `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process` first).*
+
+- **Windows (Command Prompt):**
+  ```cmd
+  python -m venv .venv
+  .venv\Scripts\activate.bat
+  ```
+
+- **macOS / Linux:**
+  ```bash
+  python3 -m venv .venv
+  source .venv/bin/activate
+  ```
+
+#### 3.2 Install Python packages
+
+Ensure your virtual environment is active, then install the dependencies:
+
+```bash
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+> [!NOTE]
+> `requirements.txt` installs PyTorch for CPU by default. If you have an NVIDIA GPU and want faster local Whisper transcription, install the CUDA build of PyTorch following instructions at [pytorch.org](https://pytorch.org/get-started/locally/).
+
+---
+
+### 4. Configure environment variables (`.env`)
+
+The backend requires API credentials for Cloudflare Workers AI (summarization, structured insights, RAG chat) and optionally Sarvam AI (for Hinglish audio).
+
+Create your `.env` file from the example template:
+
+- **Windows:** `copy .env.example .env`
+- **macOS / Linux:** `cp .env.example .env`
+
+Open `.env` in your code editor and populate the variables:
+
+```env
+# Cloudflare Workers AI (Required)
+CLOUDFLARE_ACCOUNT_ID=your_cloudflare_account_id
+CLOUDFLARE_API_TOKEN=your_cloudflare_api_token
+
+# Hinglish Translation (Required only if analyzing Hinglish speech)
+SARVAM_API_KEY=your_sarvam_api_key
+
+# Optional configuration overrides (defaults shown)
+WHISPER_MODEL=small
+CLOUDFLARE_MODEL=@cf/meta/llama-3.1-8b-instruct-fp8
+CLOUDFLARE_MAX_TOKENS=1024
+SARVAM_STT_MODEL=saaras:v2.5
+CACHE_DIR=downloads
+```
+
+#### How to obtain your API keys:
+
+1. **Cloudflare Workers AI:**
+   - Sign up or log in at [dash.cloudflare.com](https://dash.cloudflare.com/).
+   - In the dashboard, click **Workers & Pages** to find your **Account ID** in the right-hand panel.
+   - Go to **My Profile** → **API Tokens** → **Create Token**.
+   - Choose the **Workers AI** template (or configure permissions for `Workers AI: Read/Write`).
+   - Copy the generated token into `CLOUDFLARE_API_TOKEN`.
+
+2. **Sarvam AI (Hinglish only):**
+   - Register at [dashboard.sarvam.ai](https://dashboard.sarvam.ai/).
+   - Copy your API key and set `SARVAM_API_KEY`.
+   - *(If you only process English videos, you can leave this blank—local Whisper runs completely offline on your device).*
+
+---
+
+### 5. Install frontend dependencies
+
+Navigate to the `frontend` directory and install the Node.js packages:
 
 ```bash
 cd frontend
 npm install
-npm run dev
+cd ..
 ```
 
-Open http://localhost:5173.
+---
 
-For a single server, build the frontend once (`npm run build` inside `frontend/`) and just run `uvicorn app:app`. The site is then served at http://localhost:8000.
+### 6. Run the application
 
-**The site:** paste a link or upload a file, choose English or Hinglish, and press *Analyze video*. A progress checklist runs, then you get tabs for Summary, Chat, Action items, Decisions, Open questions and Transcript. Videos you have already processed are listed under *Recent videos* and open instantly.
+You can run the app in **Development Mode** (dual-terminal with hot-reloading) or **Single-Server Mode** (production build served via FastAPI).
+
+#### Option A: Development Mode (Recommended)
+
+1. **Terminal 1 — Backend:**
+   Activate your virtual environment from the project root and start Uvicorn:
+   ```bash
+   uvicorn app:app --port 8000 --reload
+   ```
+   *(Backend starts at `http://localhost:8000`)*
+
+2. **Terminal 2 — Frontend:**
+   Navigate to the frontend folder and run Vite:
+   ```bash
+   cd frontend
+   npm run dev
+   ```
+   *(Frontend starts at `http://localhost:5173` and automatically proxies `/api` calls to port 8000)*
+
+3. Open your browser and navigate to: **`http://localhost:5173`**
+
+---
+
+#### Option B: Single-Server Mode (FastAPI serves built frontend)
+
+1. **Build the frontend bundle:**
+   ```bash
+   cd frontend
+   npm run build
+   cd ..
+   ```
+2. **Start the FastAPI server:**
+   ```bash
+   uvicorn app:app --port 8000
+   ```
+3. Open your browser and navigate to: **`http://localhost:8000`**
+
+---
+
+### 7. Verifying your setup
+
+1. Open the web interface in your browser.
+2. In the input section, paste a YouTube link or upload a local video/audio file (`.mp4`, `.mp3`, `.wav`, etc.).
+3. Choose the spoken language (**English** or **Hinglish**) and click **Analyze video**.
+4. **First-run notice:**
+   - On the first English run, Whisper downloads the `small` model weights (~461 MB) to your local cache.
+   - On the first chat query, Hugging Face downloads the embedding model (`all-MiniLM-L6-v2`).
+   - All completed stages are automatically saved under `downloads/` so subsequent runs resume instantly without repeating work.
 
 ---
 
