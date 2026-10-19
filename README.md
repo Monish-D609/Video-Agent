@@ -115,8 +115,8 @@ Ensure the following tools are installed on your device:
 Open your terminal and clone the repository:
 
 ```bash
-git clone https://github.com/your-username/Video-Agent.git
-cd "Video Agent"
+git clone https://github.com/Monish-D609/Video-Agent.git
+cd Video-Agent
 ```
 
 ---
