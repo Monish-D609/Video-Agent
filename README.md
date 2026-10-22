@@ -6,6 +6,8 @@ Give it a YouTube link or a local video/audio file. It transcribes the speech, w
 
 It supports **English** and **Hinglish** (Hindi mixed with English). Hinglish speech is translated into English while it is transcribed, so everything downstream works in English.
 
+> 🚀 **Deploying to AWS?** See the comprehensive [AWS Deployment Guide](DEPLOYMENT.md) for AWS CDK deployment, cost-controlled single-instance EC2 architecture, S3 backups, and cost control scripts.
+
 ---
 
 ## How it works
