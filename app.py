@@ -38,6 +38,33 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 app = FastAPI(title="Video Agent")
 
+APP_ACCESS_TOKEN = os.getenv("APP_ACCESS_TOKEN", "").strip()
+
+
+@app.middleware("http")
+async def verify_token_middleware(request, call_next):
+    """Optional access guard to protect Cloudflare/Sarvam credits from unauthorized use."""
+    if not APP_ACCESS_TOKEN:
+        return await call_next(request)
+
+    path = request.url.path
+    # Allow /health and static frontend/assets without requiring token
+    if path == "/health" or not path.startswith("/api/"):
+        return await call_next(request)
+
+    token = request.headers.get("x-access-token") or request.query_params.get("token")
+    if token != APP_ACCESS_TOKEN:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=401, content={"detail": "Unauthorized: Invalid or missing access token"})
+
+    return await call_next(request)
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
 JOBS = {}                          # key -> {status, stage, error, source, language}
 JOBS_LOCK = threading.Lock()
 PIPELINE_LOCK = threading.Lock()   # one heavy job at a time (Whisper / vector store)
@@ -116,9 +143,17 @@ def _run_pipeline(key: str, source: str, language: str):
 
             job["status"], job["stage"] = "done", "done"
         except Exception as e:
-            print(f"❌ Pipeline failed for {key}: {type(e).__name__}: {e}")
+            err_msg = f"{type(e).__name__}: {e}"
+            lower_err = str(e).lower()
+            if any(term in lower_err for term in ("sign in to confirm", "bot", "429", "too many requests", "blocked")):
+                err_msg = (
+                    f"YouTube blocked audio extraction from this cloud server: {e}. "
+                    "Datacenter IPs are frequently challenged by YouTube bot detection. "
+                    "Please download the video/audio locally and use the 'Upload file' tab instead."
+                )
+            print(f"❌ Pipeline failed for {key}: {err_msg}")
             job["status"] = "error"
-            job["error"] = f"{type(e).__name__}: {e}"
+            job["error"] = err_msg
 
 
 def _start(key: str, source: str, language: str):
