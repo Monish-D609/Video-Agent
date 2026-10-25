@@ -16,6 +16,20 @@ $awsRegion = if ([string]::IsNullOrWhiteSpace($regionInput)) { "ap-south-1" } el
 $profileInput = Read-Host "Enter AWS CLI profile (leave empty for default)"
 $awsProfile = $profileInput.Trim()
 
+# Read local .env if present to provide seamless defaults
+$envDefaults = @{}
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$envPath = Join-Path (Split-Path -Parent $scriptDir) ".env"
+if (Test-Path $envPath) {
+    Get-Content $envPath | ForEach-Object {
+        $line = $_.Trim()
+        if ($line -and -not $line.StartsWith("#") -and $line.Contains("=")) {
+            $parts = $line.Split("=", 2)
+            $envDefaults[$parts[0].Trim()] = $parts[1].Trim()
+        }
+    }
+}
+
 function Put-Secret {
     param(
         [string]$ParamName,
@@ -60,15 +74,20 @@ function Put-Secret {
 }
 
 Write-Host "`n1. Cloudflare Workers AI Secrets" -ForegroundColor White
-Put-Secret -ParamName "/video-agent/CLOUDFLARE_ACCOUNT_ID" -Prompt "Enter CLOUDFLARE_ACCOUNT_ID" -AsSecure $false
-Put-Secret -ParamName "/video-agent/CLOUDFLARE_API_TOKEN" -Prompt "Enter CLOUDFLARE_API_TOKEN" -AsSecure $true
+$cfIdPrompt = if ($envDefaults["CLOUDFLARE_ACCOUNT_ID"]) { "Enter CLOUDFLARE_ACCOUNT_ID [found in .env]" } else { "Enter CLOUDFLARE_ACCOUNT_ID" }
+Put-Secret -ParamName "/video-agent/CLOUDFLARE_ACCOUNT_ID" -Prompt $cfIdPrompt -DefaultVal $envDefaults["CLOUDFLARE_ACCOUNT_ID"] -AsSecure $false
+
+$cfTokenPrompt = if ($envDefaults["CLOUDFLARE_API_TOKEN"]) { "Enter CLOUDFLARE_API_TOKEN [found in .env, press Enter to use]" } else { "Enter CLOUDFLARE_API_TOKEN" }
+Put-Secret -ParamName "/video-agent/CLOUDFLARE_API_TOKEN" -Prompt $cfTokenPrompt -DefaultVal $envDefaults["CLOUDFLARE_API_TOKEN"] -AsSecure ($null -eq $envDefaults["CLOUDFLARE_API_TOKEN"])
 
 Write-Host "`n2. Sarvam AI Secret (for Hinglish Speech-to-Text)" -ForegroundColor White
-Put-Secret -ParamName "/video-agent/SARVAM_API_KEY" -Prompt "Enter SARVAM_API_KEY" -AsSecure $true
+$sarvamPrompt = if ($envDefaults["SARVAM_API_KEY"]) { "Enter SARVAM_API_KEY [found in .env, press Enter to use]" } else { "Enter SARVAM_API_KEY" }
+Put-Secret -ParamName "/video-agent/SARVAM_API_KEY" -Prompt $sarvamPrompt -DefaultVal $envDefaults["SARVAM_API_KEY"] -AsSecure ($null -eq $envDefaults["SARVAM_API_KEY"])
 
 Write-Host "`n3. Application Security & Model Config" -ForegroundColor White
-Put-Secret -ParamName "/video-agent/APP_ACCESS_TOKEN" -Prompt "Enter APP_ACCESS_TOKEN (optional, shared secret to guard API, or press enter to leave open)" -AsSecure $false
-Put-Secret -ParamName "/video-agent/WHISPER_MODEL" -Prompt "Enter WHISPER_MODEL [base]" -DefaultVal "base" -AsSecure $false
+Put-Secret -ParamName "/video-agent/APP_ACCESS_TOKEN" -Prompt "Enter APP_ACCESS_TOKEN (optional, shared secret to guard API, or press enter to leave open)" -DefaultVal $envDefaults["APP_ACCESS_TOKEN"] -AsSecure $false
+$whisperDefault = if ($envDefaults["WHISPER_MODEL"]) { $envDefaults["WHISPER_MODEL"] } else { "base" }
+Put-Secret -ParamName "/video-agent/WHISPER_MODEL" -Prompt "Enter WHISPER_MODEL [$whisperDefault]" -DefaultVal $whisperDefault -AsSecure $false
 
 Write-Host "`n============================================================" -ForegroundColor Cyan
 Write-Host "✅ All parameters configured in SSM Parameter Store ($awsRegion)." -ForegroundColor Green
