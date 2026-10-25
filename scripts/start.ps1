@@ -20,7 +20,8 @@ if (-not [string]::IsNullOrWhiteSpace($Profile)) {
     $argsList += @("--profile", $Profile)
 }
 
-$instanceId = (& aws @argsList).Trim()
+$rawInstance = (& aws @argsList)
+$instanceId = if ($rawInstance) { $rawInstance.Trim() } else { "" }
 
 if ([string]::IsNullOrWhiteSpace($instanceId) -or $instanceId -eq "None") {
     $runningArgs = @(
@@ -33,7 +34,8 @@ if ([string]::IsNullOrWhiteSpace($instanceId) -or $instanceId -eq "None") {
     if (-not [string]::IsNullOrWhiteSpace($Profile)) {
         $runningArgs += @("--profile", $Profile)
     }
-    $runningId = (& aws @runningArgs).Trim()
+    $rawRunning = (& aws @runningArgs)
+    $runningId = if ($rawRunning) { $rawRunning.Trim() } else { "" }
 
     if (-not [string]::IsNullOrWhiteSpace($runningId) -and $runningId -ne "None") {
         $instanceId = $runningId
@@ -71,12 +73,26 @@ if (-not [string]::IsNullOrWhiteSpace($Profile)) {
 }
 $publicIp = (& aws @ipArgs).Trim()
 
+# Query Cloudflare HTTPS Tunnel URL via SSM if available
+$tunnelUrl = ""
+try {
+    $cmdId = (& aws ssm send-command --region $Region --instance-ids $instanceId --document-name "AWS-RunShellScript" --parameters 'commands=["/opt/video-agent/get_tunnel_url.sh"]' --query "Command.CommandId" --output text).Trim()
+    if ($cmdId) {
+        Start-Sleep -Seconds 3
+        $tunnelUrl = (& aws ssm get-command-invocation --region $Region --command-id $cmdId --instance-id $instanceId --query "StandardOutputContent" --output text).Trim()
+    }
+} catch {
+    # Non-fatal
+}
+
 Write-Host "`n============================================================" -ForegroundColor Cyan
 Write-Host "Video Agent is running!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Cyan
-Write-Host "  * Instance ID: $instanceId" -ForegroundColor White
-Write-Host "  * Public IP:   $publicIp" -ForegroundColor White
-Write-Host "  * App URL:     http://${publicIp}:8000" -ForegroundColor Yellow
-Write-Host "`n  (If you configured APP_ACCESS_TOKEN, append: ?token=YOUR_TOKEN)" -ForegroundColor Gray
-Write-Host "  (Docker service auto-starts and restores backup from S3 at boot)" -ForegroundColor Gray
+Write-Host "  * Instance ID:     $instanceId" -ForegroundColor White
+Write-Host "  * Direct EC2 IP:   $publicIp" -ForegroundColor White
+if ($tunnelUrl -and $tunnelUrl.StartsWith("https://")) {
+    Write-Host "  * HTTPS App URL:   $tunnelUrl (Share this with your teacher!)" -ForegroundColor Yellow
+}
+Write-Host "  * Direct Web URL:  http://${publicIp}:8000" -ForegroundColor Gray
+Write-Host "`n  (Works on any phone or browser with SSL encryption, 0 local setup)" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan

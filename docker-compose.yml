@@ -24,5 +24,14 @@ services:
       retries: 3
       start_period: 20s
 
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: unless-stopped
+    network_mode: host
+    command: tunnel --url http://127.0.0.1:8000
+    depends_on:
+      - video-agent
+
 volumes:
   model_cache:
