@@ -8,8 +8,8 @@ param(
     [string[]]$ExtraArgs
 )
 
-Write-Host "⚠️  WARNING: This will destroy all AWS infrastructure created by the Video Agent stack." -ForegroundColor Red
-Write-Host "   (EC2 instance, EBS root volume, Security Groups, IAM roles, S3 bucket contents).`n" -ForegroundColor Yellow
+Write-Host "[WARNING] This will destroy all AWS infrastructure created by the Video Agent stack." -ForegroundColor Red
+Write-Host "          (EC2 instance, EBS root volume, Security Groups, IAM roles, S3 bucket contents).`n" -ForegroundColor Yellow
 
 $confirm = Read-Host "Are you sure you want to proceed? (y/N)"
 if ($confirm -ne "y" -and $confirm -ne "Y") {
@@ -28,10 +28,10 @@ if ($ExtraArgs) {
     $cdkArgs += $ExtraArgs
 }
 
-Write-Host "🧨 Running cdk destroy..." -ForegroundColor Yellow
+Write-Host "Running cdk destroy..." -ForegroundColor Yellow
 & $cdkCmd @cdkArgs
 
 Write-Host "`n============================================================" -ForegroundColor Cyan
-Write-Host "✅ All Video Agent AWS resources have been destroyed." -ForegroundColor Green
-Write-Host "   Ongoing monthly cost is now `$0.00." -ForegroundColor Green
+Write-Host "[OK] All Video Agent AWS resources have been destroyed." -ForegroundColor Green
+Write-Host "     Ongoing monthly cost is now `$0.00." -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Cyan
