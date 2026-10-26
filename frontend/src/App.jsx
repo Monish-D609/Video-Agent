@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback } from "react";
-import { api } from "./api.js";
+import { api, getApiBase } from "./api.js";
 import { storage } from "./storage.js";
 import Home from "./Home.jsx";
 import Job from "./Job.jsx";
 import Sidebar from "./Sidebar.jsx";
+import BackendModal from "./BackendModal.jsx";
 
 // The open video lives in the URL (#/v/<id>), so refresh and back button work naturally.
 const parse = () => {
@@ -15,6 +16,21 @@ export default function App() {
   const [id, setId] = useState(parse);
   const [chatList, setChatList] = useState(() => storage.getChatList());
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [backendModalOpen, setBackendModalOpen] = useState(false);
+  const [backendConnected, setBackendConnected] = useState("checking");
+
+  // Health check
+  const checkHealth = useCallback(() => {
+    setBackendConnected("checking");
+    api
+      .health()
+      .then(() => setBackendConnected("connected"))
+      .catch(() => setBackendConnected("offline"));
+  }, []);
+
+  useEffect(() => {
+    checkHealth();
+  }, [checkHealth]);
 
   // Theme management: persisted in localStorage with system preference fallback
   const [theme, setTheme] = useState(() => {
@@ -142,6 +158,19 @@ export default function App() {
 
           <div className="topbar-right">
             <button
+              className={`backend-status-pill ${backendConnected}`}
+              onClick={() => setBackendModalOpen(true)}
+              title="Click to view or edit AWS Cloud Backend connection settings"
+            >
+              <span className="status-dot" />
+              {backendConnected === "connected"
+                ? "Cloud Connected"
+                : backendConnected === "checking"
+                ? "Connecting…"
+                : "Connect Backend"}
+            </button>
+
+            <button
               className="theme-toggle-btn"
               onClick={toggleTheme}
               title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
@@ -195,6 +224,18 @@ export default function App() {
           </div>
         </header>
 
+        {/* If on Vercel and backend is offline/not configured, show notice */}
+        {backendConnected !== "connected" &&
+          typeof window !== "undefined" &&
+          window.location.hostname.includes("vercel.app") && (
+            <div className="backend-offline-banner">
+              <span>
+                ⚠ <strong>AWS Backend is not connected:</strong> Start <code>run.bat</code> on your PC or configure your Cloudflare URL.
+              </span>
+              <button onClick={() => setBackendModalOpen(true)}>Connect URL</button>
+            </div>
+          )}
+
         {/* Main body: either Job (with Chat default) or Home */}
         <main className="content-scroll-area">
           <div className="page-container">
@@ -212,6 +253,17 @@ export default function App() {
           </div>
         </main>
       </div>
+
+      <BackendModal
+        isOpen={backendModalOpen}
+        onClose={() => setBackendModalOpen(false)}
+        onConnected={(ok) => {
+          if (ok) {
+            checkHealth();
+            refreshChats();
+          }
+        }}
+      />
     </div>
   );
 }

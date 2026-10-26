@@ -42,7 +42,7 @@ app = FastAPI(title="Video Agent")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origin_regex=r".*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -54,12 +54,16 @@ APP_ACCESS_TOKEN = os.getenv("APP_ACCESS_TOKEN", "").strip()
 @app.middleware("http")
 async def verify_token_middleware(request, call_next):
     """Optional access guard to protect Cloudflare/Sarvam credits from unauthorized use."""
+    # Always allow CORS preflight requests without requiring access token
+    if request.method == "OPTIONS":
+        return await call_next(request)
+
     if not APP_ACCESS_TOKEN:
         return await call_next(request)
 
     path = request.url.path
     # Allow /health and static frontend/assets without requiring token
-    if path == "/health" or not path.startswith("/api/"):
+    if path in ("/health", "/api/health") or not path.startswith("/api/"):
         return await call_next(request)
 
     token = request.headers.get("x-access-token") or request.query_params.get("token")
@@ -71,6 +75,7 @@ async def verify_token_middleware(request, call_next):
 
 
 @app.get("/health")
+@app.get("/api/health")
 def health():
     return {"status": "ok"}
 

@@ -1,13 +1,28 @@
 async function handle(res) {
+  const isJson = res.headers.get("content-type")?.includes("application/json");
+
   if (!res.ok) {
-    let message = res.statusText;
-    try {
-      const data = await res.json();
-      message = data.detail || message;
-    } catch {}
+    if (res.status === 413) {
+      throw new Error("File is too large to upload directly. Please try a smaller file or paste a YouTube link.");
+    }
+    let message = res.statusText || `Request failed (${res.status})`;
+    if (isJson) {
+      try {
+        const data = await res.json();
+        message = data.detail || message;
+      } catch {}
+    }
     throw new Error(message);
   }
-  return res.json();
+
+  if (isJson) {
+    return res.json();
+  }
+
+  // If server returned 200 HTML when JSON was expected (e.g. Vercel SPA rewrite fallback)
+  throw new Error(
+    "Cloud backend returned an unexpected response. Please ensure your AWS EC2 backend is running and connected."
+  );
 }
 
 function getAuthHeaders() {
@@ -77,6 +92,13 @@ export function apiUrl(path) {
 
 export const api = {
   health: () => fetch(apiUrl("/health")).then(handle),
+  testConnection: async (baseUrl) => {
+    const cleanUrl = (baseUrl || "").trim().replace(/\/+$/, "");
+    if (!cleanUrl) throw new Error("Please enter a backend URL");
+    const target = `${cleanUrl}/health`;
+    const res = await fetch(target, { headers: reqHeaders(), mode: "cors" });
+    return handle(res);
+  },
   process: (source, language) =>
     fetch(apiUrl("/api/process"), json({ source, language })).then(handle),
   upload: (file, language) => {
