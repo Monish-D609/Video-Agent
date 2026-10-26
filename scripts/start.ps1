@@ -73,16 +73,54 @@ if (-not [string]::IsNullOrWhiteSpace($Profile)) {
 }
 $publicIp = (& aws @ipArgs).Trim()
 
-# Query Cloudflare HTTPS Tunnel URL via SSM if available
+# Query Cloudflare HTTPS Tunnel URL via SSM with polling
 $tunnelUrl = ""
-try {
-    $cmdId = (& aws ssm send-command --region $Region --instance-ids $instanceId --document-name "AWS-RunShellScript" --parameters 'commands=["/opt/video-agent/get_tunnel_url.sh"]' --query "Command.CommandId" --output text).Trim()
-    if ($cmdId) {
-        Start-Sleep -Seconds 3
-        $tunnelUrl = (& aws ssm get-command-invocation --region $Region --command-id $cmdId --instance-id $instanceId --query "StandardOutputContent" --output text).Trim()
+Write-Host "Connecting to cloud services and retrieving HTTPS tunnel URL..." -ForegroundColor Cyan
+
+$maxAttempts = 12
+for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
+    Write-Host "  * Checking cloud services (attempt $attempt of $maxAttempts)..." -ForegroundColor Gray
+    Start-Sleep -Seconds 4
+    try {
+        $cmdArgs = @(
+            "ssm", "send-command",
+            "--region", $Region,
+            "--instance-ids", $instanceId,
+            "--document-name", "AWS-RunShellScript",
+            "--parameters", "commands=[/opt/video-agent/get_tunnel_url.sh]",
+            "--query", "Command.CommandId",
+            "--output", "text"
+        )
+        if (-not [string]::IsNullOrWhiteSpace($Profile)) {
+            $cmdArgs += @("--profile", $Profile)
+        }
+        $cmdId = (& aws @cmdArgs 2>$null)
+        if ($cmdId) {
+            $cmdId = $cmdId.Trim()
+            Start-Sleep -Seconds 3
+            $invArgs = @(
+                "ssm", "get-command-invocation",
+                "--region", $Region,
+                "--command-id", $cmdId,
+                "--instance-id", $instanceId,
+                "--query", "StandardOutputContent",
+                "--output", "text"
+            )
+            if (-not [string]::IsNullOrWhiteSpace($Profile)) {
+                $invArgs += @("--profile", $Profile)
+            }
+            $rawOut = (& aws @invArgs 2>$null)
+            if ($rawOut) {
+                $candidate = $rawOut.Trim()
+                if ($candidate.StartsWith("https://")) {
+                    $tunnelUrl = $candidate
+                    break
+                }
+            }
+        }
+    } catch {
+        # SSM agent is still completing boot sequence
     }
-} catch {
-    # Non-fatal
 }
 
 Write-Host "`n============================================================" -ForegroundColor Cyan
@@ -96,6 +134,11 @@ if ($tunnelUrl -and $tunnelUrl.StartsWith("https://")) {
     Write-Host "  * Cloudflare URL:   $tunnelUrl" -ForegroundColor Yellow
     Write-Host "  ------------------------------------------------------------" -ForegroundColor Cyan
     Write-Host "  >>> SHARE THE VERCEL LINK WITH YOUR TEACHER TO OPEN ON PHONE! <<<" -ForegroundColor Yellow
+    
+    # Automatically open Vercel app in default browser
+    try {
+        Start-Process "https://video-agent-cloud.vercel.app/?api=$tunnelUrl"
+    } catch {}
 } else {
     Write-Host "  * Direct Web URL:  http://${publicIp}:8000" -ForegroundColor Gray
 }
