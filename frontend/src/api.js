@@ -60,12 +60,23 @@ export function getApiBase() {
   return "";
 }
 
+export function setApiBase(url) {
+  if (typeof window !== "undefined") {
+    if (!url) {
+      localStorage.removeItem("video_agent_backend_url");
+    } else {
+      localStorage.setItem("video_agent_backend_url", url.trim().replace(/\/+$/, ""));
+    }
+  }
+}
+
 export function apiUrl(path) {
   const base = getApiBase();
   return base ? `${base}${path}` : path;
 }
 
 export const api = {
+  health: () => fetch(apiUrl("/health")).then(handle),
   process: (source, language) =>
     fetch(apiUrl("/api/process"), json({ source, language })).then(handle),
   upload: (file, language) => {

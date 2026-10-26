@@ -91,8 +91,13 @@ Write-Host "============================================================" -Foreg
 Write-Host "  * Instance ID:     $instanceId" -ForegroundColor White
 Write-Host "  * Direct EC2 IP:   $publicIp" -ForegroundColor White
 if ($tunnelUrl -and $tunnelUrl.StartsWith("https://")) {
-    Write-Host "  * HTTPS App URL:   $tunnelUrl (Share this with your teacher!)" -ForegroundColor Yellow
+    Write-Host "`n  ------------------------------------------------------------" -ForegroundColor Cyan
+    Write-Host "  * Live Vercel App:  https://video-agent-cloud.vercel.app/?api=$tunnelUrl" -ForegroundColor Green
+    Write-Host "  * Cloudflare URL:   $tunnelUrl" -ForegroundColor Yellow
+    Write-Host "  ------------------------------------------------------------" -ForegroundColor Cyan
+    Write-Host "  >>> SHARE THE VERCEL LINK WITH YOUR TEACHER TO OPEN ON PHONE! <<<" -ForegroundColor Yellow
+} else {
+    Write-Host "  * Direct Web URL:  http://${publicIp}:8000" -ForegroundColor Gray
 }
-Write-Host "  * Direct Web URL:  http://${publicIp}:8000" -ForegroundColor Gray
 Write-Host "`n  (Works on any phone or browser with SSL encryption, 0 local setup)" -ForegroundColor Cyan
 Write-Host "============================================================" -ForegroundColor Cyan
