@@ -3,11 +3,11 @@ import { api } from "./api.js";
 import Results from "./Results.jsx";
 
 const STEPS = [
-  ["fetching", "Fetching audio"],
-  ["transcribing", "Transcribing speech"],
-  ["summarizing", "Writing the summary"],
-  ["extracting", "Extracting action items, decisions and questions"],
-  ["indexing", "Preparing the chat"],
+  ["fetching", "Extracting & normalizing audio (FFmpeg 16 kHz WAV)"],
+  ["transcribing", "Transcribing speech (Whisper / Sarvam AI)"],
+  ["summarizing", "Generating structured summary (LLaMA 3.3 70B)"],
+  ["extracting", "Extracting action items, key decisions & questions"],
+  ["indexing", "Indexing dense embeddings in ChromaDB vector store"],
 ];
 
 function Processing({ stage }) {

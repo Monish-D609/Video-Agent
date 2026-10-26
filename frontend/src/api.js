@@ -101,11 +101,66 @@ export const api = {
   },
   process: (source, language) =>
     fetch(apiUrl("/api/process"), json({ source, language })).then(handle),
-  upload: (file, language) => {
-    const form = new FormData();
-    form.append("file", file);
-    form.append("language", language);
-    return fetch(apiUrl("/api/upload"), { method: "POST", headers: reqHeaders(), body: form }).then(handle);
+  upload: (file, language, onProgress) => {
+    return new Promise((resolve, reject) => {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("language", language);
+
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", apiUrl("/api/upload"));
+
+      const headers = reqHeaders();
+      for (const [key, value] of Object.entries(headers)) {
+        xhr.setRequestHeader(key, value);
+      }
+
+      if (xhr.upload && onProgress) {
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const percent = Math.round((event.loaded / event.total) * 100);
+            onProgress(percent, event.loaded, event.total);
+          }
+        };
+      }
+
+      xhr.onload = () => {
+        const contentType = xhr.getResponseHeader("content-type") || "";
+        if (xhr.status >= 200 && xhr.status < 300) {
+          if (contentType.includes("application/json")) {
+            try {
+              resolve(JSON.parse(xhr.responseText));
+            } catch (err) {
+              reject(new Error("Invalid JSON response from server"));
+            }
+          } else {
+            reject(
+              new Error(
+                "Received HTML from server instead of API response. Verify that your AWS EC2 backend is running and connected."
+              )
+            );
+          }
+        } else {
+          let msg = xhr.statusText || `Upload failed (${xhr.status})`;
+          if (xhr.status === 413) {
+            msg = "File is too large for upload. Try a smaller file or paste a YouTube URL.";
+          }
+          if (contentType.includes("application/json")) {
+            try {
+              const data = JSON.parse(xhr.responseText);
+              msg = data.detail || msg;
+            } catch {}
+          }
+          reject(new Error(msg));
+        }
+      };
+
+      xhr.onerror = () => {
+        reject(new Error("Network error during file upload. Check backend connection."));
+      };
+
+      xhr.send(form);
+    });
   },
   status: (id) => fetch(apiUrl(`/api/status/${id}`), { headers: reqHeaders() }).then(handle),
   retry: (id) => fetch(apiUrl(`/api/retry/${id}`), { method: "POST", headers: reqHeaders() }).then(handle),
