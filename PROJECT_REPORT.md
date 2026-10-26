@@ -6,6 +6,7 @@
 **Course / Domain:** Cloud Computing & Applied Artificial Intelligence  
 **Author / Developer:** Monish D  
 **Repository Branch:** [`Cloud-Integrated`](https://github.com/Monish-D609/Video-Agent/tree/Cloud-Integrated)  
+**Live Frontend URL (Vercel):** [https://video-agent-cloud.vercel.app/](https://video-agent-cloud.vercel.app/)  
 **Target Cloud Platform:** Amazon Web Services (AWS) — Region `ap-south-1` (Mumbai)  
 **IaC Tooling:** AWS Cloud Development Kit (CDK v2 - Python)  
 

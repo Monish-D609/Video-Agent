@@ -6,7 +6,23 @@ Give it a YouTube link or a local video/audio file. It transcribes the speech, w
 
 It supports **English** and **Hinglish** (Hindi mixed with English). Hinglish speech is translated into English while it is transcribed, so everything downstream works in English.
 
-> 🚀 **Deploying to AWS?** See the comprehensive [AWS Deployment Guide](DEPLOYMENT.md) for AWS CDK deployment, cost-controlled single-instance EC2 architecture, S3 backups, and cost control scripts.
+---
+
+### 🌐 Live Production Deployment
+
+- **Frontend (Always Online 24/7):** **[https://video-agent-cloud.vercel.app/](https://video-agent-cloud.vercel.app/)**
+  - Hosted on **Vercel** with worldwide edge CDN delivery, SSL/HTTPS encryption, and zero serverless costs ($0.00).
+- **Backend & Cloud AI (On-Demand AWS):**
+  - Hosted on **Amazon Web Services (AWS EC2 `t3.small` in `ap-south-1`)** running FastAPI, local OpenAI Whisper, Sarvam AI speech API, Cloudflare Workers AI (LLaMA 3.3 70B), and ChromaDB vector search.
+  - State is automatically synchronized to a private **Amazon S3** backup bucket.
+- **Cost-Controlled On-Demand Management:**
+  - `run.bat` — Double-click to start the AWS EC2 backend and live HTTPS tunnel when ready to demonstrate or process videos.
+  - `stop.bat` — Double-click when finished to back up state to S3 and halt all AWS compute & IPv4 billing ($0.00/hour).
+
+> 📘 **Documentation & Presentation Materials:**
+> - [AWS Deployment & Infrastructure Guide](DEPLOYMENT.md)
+> - [Comprehensive Project Report (Markdown)](PROJECT_REPORT.md) & [Word Document](PROJECT_REPORT.docx)
+> - [Seminar Presentation Guide & Script (5 Phases)](SEMINAR_PRESENTATION_GUIDE.md) & [Word Document](SEMINAR_PRESENTATION_GUIDE.docx)
 
 ---
 
@@ -60,29 +76,36 @@ The project is built in phases:
 
 ```
 Video Agent/
-├── app.py                 # FastAPI backend (wraps the pipeline for the website)
-├── requirements.txt
-├── .env                   # your API keys (not committed)
+├── app.py                     # FastAPI backend & single-server orchestrator
+├── run.bat                    # Double-click to start AWS EC2 backend & live HTTPS
+├── stop.bat                   # Double-click to halt AWS EC2 backend ($0.00 cost)
+├── requirements.txt           # Python dependencies
+├── .env                       # API keys (Cloudflare, Sarvam AI)
 │
-├── core/
-│   ├── transcriber.py     # Whisper / Sarvam transcription, resumable
-│   ├── summarize.py       # title, chunk-wise and overall summary
-│   ├── extractor.py       # action items, decisions, open questions
-│   ├── vector_store.py    # chunking + embeddings + vector store
-│   └── rag_engine.py      # build_rag_chain / load_rag_chain / ask_question
+├── core/                      # Core AI pipeline
+│   ├── transcriber.py         # Whisper (local) & Sarvam AI (Hinglish)
+│   ├── summarize.py           # Title, chunk-wise & overall summaries (LLaMA 3.3)
+│   ├── extractor.py           # Action items, key decisions, open questions
+│   ├── vector_store.py        # HuggingFace embeddings & ChromaDB vector store
+│   └── rag_engine.py          # Grounded question answering (RAG)
 │
-├── utils/
-│   ├── audio_processor.py # download, convert to WAV, chunk audio
-│   └── store.py           # JSON saving / resuming (raw, processed, session)
+├── utils/                     # Media & persistence utilities
+│   ├── audio_processor.py     # yt-dlp download, FFmpeg 16 kHz WAV, chunking
+│   └── store.py               # JSON persistence (raw, processed, session)
 │
-├── downloads/             # created at runtime (git-ignored)
-│   ├── raw/               # chunk-wise transcripts
-│   ├── processed/         # combined transcript + title, summary, extractions
-│   ├── session/           # chat history per video, saved after every answer
-│   └── uploads/           # files uploaded through the website
+├── infra/                     # AWS CDK Infrastructure as Code (Python)
+│   ├── app.py                 # CDK entry point
+│   ├── video_agent_stack.py   # Declarative AWS Stack (EC2, S3, EBS, SSM, IAM, Budgets)
+│   └── cdk.json               # CDK context & parameters
 │
-└── frontend/              # React (Vite) web app
-    └── src/               # App, Home, Job, Results, Chat, FormattedText, api.js, styles.css
+├── scripts/                   # Cloud management & documentation generators
+│   ├── start.ps1 / stop.ps1   # PowerShell EC2 lifecycle controls
+│   ├── s3_sync.sh             # S3 backup & restore daemon
+│   └── generate_docx_report.py# Automated Word report generation
+│
+└── frontend/                  # React + Vite Single-Page Application (SPA)
+    ├── vercel.json            # Vercel production hosting configuration
+    └── src/                   # React components, UI state, api.js, storage.js
 ```
 
 ---

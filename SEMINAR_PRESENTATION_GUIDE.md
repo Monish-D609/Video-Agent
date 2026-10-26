@@ -4,6 +4,7 @@
 **Student:** Monish D (Semester 5)  
 **Format:** 12–15 Minute Presentation + 5 Minute Live Demo & Technical Q&A  
 **Branch:** [`Cloud-Integrated`](https://github.com/Monish-D609/Video-Agent/tree/Cloud-Integrated)  
+**Live Frontend URL (Vercel):** [https://video-agent-cloud.vercel.app/](https://video-agent-cloud.vercel.app/)  
 
 ---
 
@@ -12,10 +13,10 @@ Your evaluator wants to see that this is **not merely an AI prototype**, but a *
 To satisfy this expectation, present the project across **5 distinct phases**:
 
 1. **Phase 1: Local Development** (Problem formulation, audio chunking, baseline benchmarking)
-2. **Phase 2: Frontend Engineering** (React/Vite SPA, responsive UX, client-side localStorage caching)
+2. **Phase 2: Frontend Engineering & Edge Delivery** (React/Vite SPA on Vercel 24/7, responsive UX, client-side localStorage caching)
 3. **Phase 3: Backend & Orchestration** (FastAPI async worker, dual-engine STT, ChromaDB vector RAG)
 4. **Phase 4: Cloud Architecture on AWS** (Zero-NAT VPC, EC2 t3.small, EBS swap safeguard, S3 sync, SSM zero-secrets)
-5. **Phase 5: Production Deployment & Delivery** (AWS CDK IaC, Docker containerization, Cloudflare HTTPS mobile access)
+5. **Phase 5: Production Deployment & Delivery** (AWS CDK IaC, Docker containerization, Cloudflare HTTPS mobile access, Vercel frontend, `run.bat`/`stop.bat` cost controls)
 
 ---
 
@@ -38,16 +39,17 @@ To satisfy this expectation, present the project across **5 distinct phases**:
 
 ---
 
-### 🔹 Phase 2: Frontend Engineering & Client-Side Resilience
+### 🔹 Phase 2: Frontend Engineering & Edge Delivery
 *Duration: ~2 Minutes*
 
 - **🗣️ What to Say:**
   > "In Phase 2, we built the presentation layer using React with Vite. Rather than a basic prototype, we implemented a responsive, dark-mode single-page dashboard tailored for both desktop and mobile screens.
   > 
   > Key architectural features include:
-  > 1. **Real-time stage polling:** Users see visual feedback as the video transitions through Downloading, Transcribing, Summarizing, and Indexing.
-  > 2. **Client-side caching:** We implemented a two-tier storage manager in localStorage (`storage.js`). Previous chat sessions and summaries are cached directly on the client. Even if the network drops or the server is stopped, the user never sees a blank screen.
-  > 3. **Production bundling:** The React application is compiled into static production assets (`frontend/dist`) and statically mounted by the FastAPI backend, eliminating the overhead of running a separate Node.js server in the cloud."
+  > 1. **Continuous 24/7 Edge Hosting on Vercel:** The frontend is permanently deployed at `https://video-agent-cloud.vercel.app/` with global edge caching, SSL encryption, and $0.00 serverless hosting cost.
+  > 2. **Real-time stage polling:** Users see visual feedback as the video transitions through Downloading, Transcribing, Summarizing, and Indexing.
+  > 3. **Client-side caching & resilience:** We implemented a two-tier storage manager in localStorage (`storage.js`). Previous chat sessions and summaries are cached directly on the client. Even when the cloud backend is stopped, users can still review previous transcripts and summaries on their phones.
+  > 4. **Dynamic API routing:** The frontend seamlessly binds to the live backend tunnel URL without hardcoding."
 
 - **🖥️ What to Show:**
   - Slide with screenshots of the Web UI on both Laptop and Mobile Phone:
@@ -55,7 +57,7 @@ To satisfy this expectation, present the project across **5 distinct phases**:
     - Right side: Interactive Q&A chat with exact timestamp citations.
 
 - **🎯 Technical Punchline:**
-  - Highlights full-stack engineering: single-server static mounting (saving cloud resources) and client-side offline resilience with localStorage.
+  - Highlights full-stack engineering: continuous zero-cost edge delivery on Vercel, decoupled hybrid cloud design, and offline resilience with localStorage.
 
 ---
 
@@ -116,15 +118,15 @@ To satisfy this expectation, present the project across **5 distinct phases**:
   > 
   > 1. **Infrastructure as Code (IaC):** The entire AWS footprint was authored using AWS CDK v2 in Python. With a single declarative command, CDK synthesizes and provisions the IAM policies, S3 bucket, EC2 instance, and Budget alarms in 170 seconds without manual console clicking.
   > 2. **Multi-Stage Docker Containerization:** We created a Docker image that pre-caches Whisper AI weights and embedding models in the container layer, reducing cold-start latency from minutes to seconds.
-  > 3. **Mobile Production URL:** To make the application accessible on mobile phones without awkward IP addresses or port numbers (`:8000`), we deployed an automated Cloudflare HTTPS tunnel directly on the EC2 instance. This provides an enterprise-grade, SSL-encrypted URL that anyone—including you, ma'am—can open on an iPhone or Android phone.
-  > 4. **Lifecycle Cost Management:** We developed `stop.ps1` and `start.ps1` automation scripts. Running `stop.ps1` immediately triggers an S3 state sync and pauses the EC2 instance, halting all compute and IPv4 billing to $0.00 when not in use."
+  > 3. **Decoupled Edge Delivery & Mobile Access:** The React frontend is deployed on Vercel at `https://video-agent-cloud.vercel.app/` for instant worldwide mobile access. When demonstration begins, `run.bat` brings up the EC2 backend and sets up a secure HTTPS tunnel. Anyone—including you, ma'am—can open the web app on an iPhone or Android phone.
+  > 4. **Lifecycle Cost Management (`run.bat` & `stop.bat`):** When the demonstration ends, double-clicking `stop.bat` triggers an S3 state sync and halts the EC2 instance, guaranteeing $0.00 in ongoing compute and IPv4 billing."
 
 - **🖥️ What to Show:**
   - Slide showing Deployment Automation & Verification:
     - AWS CDK synthesis and deployment output (`CREATE_COMPLETE` in 170s)
     - Docker multi-stage build diagram
-    - Live HTTPS URL on mobile phone
-    - Automated PowerShell start/stop lifecycle commands.
+    - Live Vercel frontend URL on mobile phone (`https://video-agent-cloud.vercel.app/`)
+    - Automated `run.bat` and `stop.bat` lifecycle controls.
 
 - **🎯 Technical Punchline:**
   - Connects DevOps automation (IaC + Docker) with real-world accessibility and financial management.
@@ -135,11 +137,11 @@ To satisfy this expectation, present the project across **5 distinct phases**:
 
 | Step | Action & Screen to Show | What to Explain to Faculty |
 | :--- | :--- | :--- |
-| **1. Cloud Verification** | Open AWS Management Console (EC2 Dashboard & S3) | Show the `t3.small` EC2 instance running in `ap-south-1` with `Project: video-agent` tags, the private S3 backup bucket, and the closed Port 22 in the Security Group. |
-| **2. Launch Live App** | Open the HTTPS link on your laptop and offer it to her phone | Open `https://occupations-bold-accompanied-formula.trycloudflare.com`. Point out that the site has a valid green-padlock SSL certificate with no port numbers. |
+| **1. Cloud Verification** | Open AWS Management Console (EC2 Dashboard & S3) | Show the `t3.small` EC2 instance in `ap-south-1` with `Project: video-agent` tags, the private S3 backup bucket, and the closed Port 22 in the Security Group. |
+| **2. Launch Live App** | Double-click `run.bat` & open Vercel link on laptop/phone | Double-click `run.bat` to boot the EC2 instance and get the live HTTPS tunnel. Open **`https://video-agent-cloud.vercel.app/`** on mobile and laptop. Point out the valid SSL certificate and 24/7 availability. |
 | **3. Process Media** | Upload an audio file or YouTube video clip | Click Process. Show the real-time progress indicator updating from Transcribing to Summarizing to Indexing. Explain that this is running on the EC2 Docker container. |
 | **4. Review & Chat** | Show generated Executive Summary and Ask a Question in Chat | Display the structured markdown summary and action items. In the chat box, ask a question about the video; show how the RAG engine cites the exact video timestamp. |
-| **5. Cost & Lifecycle** | Show `stop.ps1` in the terminal | Explain: *"When the seminar ends, running `stop.ps1` will sync our new session data to S3 and stop the instance, ensuring 0 ongoing compute charges."* |
+| **5. Cost & Lifecycle** | Double-click `stop.bat` in the project root | Explain: *"When the seminar ends, running `stop.bat` syncs our new session data to S3 and stops the EC2 instance, guaranteeing $0.00 ongoing compute charges."* |
 
 ---
 
