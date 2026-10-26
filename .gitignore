@@ -88,6 +88,8 @@ pnpm-debug.log*
 *.swp
 .DS_Store
 Thumbs.db
+~$*
+*.tmp
 
 frontend/node_modules
 frontend/dist

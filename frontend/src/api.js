@@ -40,22 +40,48 @@ const json = (body) => ({
   body: JSON.stringify(body),
 });
 
+export function getApiBase() {
+  if (typeof window !== "undefined") {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const queryApi = params.get("api");
+      if (queryApi) {
+        const cleaned = queryApi.replace(/\/+$/, "");
+        localStorage.setItem("video_agent_backend_url", cleaned);
+        return cleaned;
+      }
+      const saved = localStorage.getItem("video_agent_backend_url");
+      if (saved) return saved.replace(/\/+$/, "");
+      if (import.meta.env.VITE_API_URL) {
+        return import.meta.env.VITE_API_URL.replace(/\/+$/, "");
+      }
+    } catch {}
+  }
+  return "";
+}
+
+export function apiUrl(path) {
+  const base = getApiBase();
+  return base ? `${base}${path}` : path;
+}
+
 export const api = {
   process: (source, language) =>
-    fetch("/api/process", json({ source, language })).then(handle),
+    fetch(apiUrl("/api/process"), json({ source, language })).then(handle),
   upload: (file, language) => {
     const form = new FormData();
     form.append("file", file);
     form.append("language", language);
-    return fetch("/api/upload", { method: "POST", headers: reqHeaders(), body: form }).then(handle);
+    return fetch(apiUrl("/api/upload"), { method: "POST", headers: reqHeaders(), body: form }).then(handle);
   },
-  status: (id) => fetch(`/api/status/${id}`, { headers: reqHeaders() }).then(handle),
-  retry: (id) => fetch(`/api/retry/${id}`, { method: "POST", headers: reqHeaders() }).then(handle),
-  result: (id) => fetch(`/api/result/${id}`, { headers: reqHeaders() }).then(handle),
-  videos: () => fetch("/api/videos", { headers: reqHeaders() }).then(handle),
+  status: (id) => fetch(apiUrl(`/api/status/${id}`), { headers: reqHeaders() }).then(handle),
+  retry: (id) => fetch(apiUrl(`/api/retry/${id}`), { method: "POST", headers: reqHeaders() }).then(handle),
+  result: (id) => fetch(apiUrl(`/api/result/${id}`), { headers: reqHeaders() }).then(handle),
+  videos: () => fetch(apiUrl("/api/videos"), { headers: reqHeaders() }).then(handle),
   chat: (id, question) =>
-    fetch(`/api/chat/${id}`, json({ question })).then(handle),
-  session: (id) => fetch(`/api/session/${id}`, { headers: reqHeaders() }).then(handle),
+    fetch(apiUrl(`/api/chat/${id}`), json({ question })).then(handle),
+  session: (id) => fetch(apiUrl(`/api/session/${id}`), { headers: reqHeaders() }).then(handle),
   clearSession: (id) =>
-    fetch(`/api/session/${id}`, { method: "DELETE", headers: reqHeaders() }).then(handle),
+    fetch(apiUrl(`/api/session/${id}`), { method: "DELETE", headers: reqHeaders() }).then(handle),
 };
+

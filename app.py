@@ -36,7 +36,17 @@ FIELDS = ("title", "summary", "action_items", "decisions", "questions")
 UPLOAD_DIR = os.path.join(store.CACHE_DIR, "uploads")     # downloads/uploads
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+from fastapi.middleware.cors import CORSMiddleware
+
 app = FastAPI(title="Video Agent")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 APP_ACCESS_TOKEN = os.getenv("APP_ACCESS_TOKEN", "").strip()
 
