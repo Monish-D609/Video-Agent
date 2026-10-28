@@ -174,11 +174,11 @@ export default function Home({ onOpen }) {
           </button>
         </div>
 
-        <p className="hint">
-          {language === "hinglish"
-            ? "Hinglish is transcribed with Sarvam AI and translated to English."
-            : "English is transcribed locally with Whisper."}
-        </p>
+        {language === "hinglish" && (
+          <p className="hint">
+            Hinglish is transcribed with Sarvam AI and translated to English.
+          </p>
+        )}
         {error && <div className="error">{error}</div>}
       </form>
 
